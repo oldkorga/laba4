@@ -27,25 +27,27 @@ public class MainFrame extends JFrame {
 	private static final int HEIGHT = 600;
 // Объект диалогового окна для выбора файлов
 	private JFileChooser fileChooser = null;
-	private JFileChooser fileChooser1 = null;
+	
 // Пункты меню
 	private JCheckBoxMenuItem showAxisMenuItem;
-	private JCheckBoxMenuItem showSecondGraphicItem;
 	private JCheckBoxMenuItem showMarkersMenuItem;
+	private JCheckBoxMenuItem showAltGraphicMenuItem;
+	private JCheckBoxMenuItem isRotatedMenuItem;
+	
 // Компонент-отображатель графика 
 	private GraphicsDisplay display = new GraphicsDisplay();
 // Флаг, указывающий на загруженность данных графика
 	private boolean fileLoaded = false;
+	private boolean altFileLoaded = false;
 
 	public MainFrame() {
 // Вызов конструктора предка Frame
 		super("Построение графиков функций на основе заранее подготовленных файлов");
-// Установка размеров окна
+
 		setSize(WIDTH, HEIGHT);
 		Toolkit kit = Toolkit.getDefaultToolkit();
 // Отцентрировать окно приложения на экране
 		setLocation((kit.getScreenSize().width - WIDTH) / 2, (kit.getScreenSize().height - HEIGHT) / 2);
-// Развѐртывание окна на весь экран
 		setExtendedState(MAXIMIZED_BOTH);
 // Создать и установить полосу меню
 		JMenuBar menuBar = new JMenuBar();
@@ -61,61 +63,38 @@ public class MainFrame extends JFrame {
 					fileChooser.setCurrentDirectory(new File("."));
 				}
 				if (fileChooser.showOpenDialog(MainFrame.this) == JFileChooser.APPROVE_OPTION)
-					openGraphics(fileChooser.getSelectedFile());
+					openGraphics(fileChooser.getSelectedFile(), false);
 			}
 		};
 		
-		Action openSecondGraphicsAction = new AbstractAction("Открыть файл с 2 графиком") {
+
+		fileMenu.add(openGraphicsAction);	
+		
+		Action openAltGraphicsAction = new AbstractAction("Открыть файл со вторым графиком") {
 			public void actionPerformed(ActionEvent event) {
-				
-				if (fileChooser1 == null) {
-					fileChooser1 = new JFileChooser();
-					fileChooser1.setCurrentDirectory(new File("."));
+				if (fileChooser == null) {
+					fileChooser = new JFileChooser();
+					fileChooser.setCurrentDirectory(new File("."));
 				}
-				if (fileChooser1.showOpenDialog(MainFrame.this) == JFileChooser.APPROVE_OPTION)
-					openGraphics(fileChooser1.getSelectedFile());
+				if (fileChooser.showOpenDialog(MainFrame.this) == JFileChooser.APPROVE_OPTION)
+					openGraphics(fileChooser.getSelectedFile(), true);
 			}
 		};
+		fileMenu.add(openAltGraphicsAction);
 		
-// Добавить соответствующий элемент меню
-		fileMenu.add(openGraphicsAction);
-		fileMenu.add(openSecondGraphicsAction);
 // Создать пункт меню "График"
 		JMenu graphicsMenu = new JMenu("График");
 		menuBar.add(graphicsMenu);
-// Создать действие для реакции на активацию элемента "Показывать оси координат"
+
 		Action showAxisAction = new AbstractAction("Показывать оси координат") {
 			public void actionPerformed(ActionEvent event) {
-// свойство showAxis класса GraphicsDisplay истина, если элемент меню
-// showAxisMenuItem отмечен флажком, и ложь - в противном случае
 				display.setShowAxis(showAxisMenuItem.isSelected());
 			}
 		};
 		showAxisMenuItem = new JCheckBoxMenuItem(showAxisAction);
-// Добавить соответствующий элемент в меню
 		graphicsMenu.add(showAxisMenuItem);
-// Элемент по умолчанию включен (отмечен флажком)
 		showAxisMenuItem.setSelected(true);
-		
-		
-		
-		
-		
-		Action showSecondGraphic = new AbstractAction("Показывать 2ой график") {
-			public void actionPerformed(ActionEvent event) {
-// свойство showAxis класса GraphicsDisplay истина, если элемент меню
-// showAxisMenuItem отмечен флажком, и ложь - в противном случае
-				display.setShowAxis(showSecondGraphicItem.isSelected());
-			}
-		};
-		showSecondGraphicItem = new JCheckBoxMenuItem(showSecondGraphic);
-// Добавить соответствующий элемент в меню
-		graphicsMenu.add(showSecondGraphicItem);
-// Элемент по умолчанию включен (отмечен флажком)
-		showSecondGraphicItem.setSelected(true);
-		
-		
-		
+			
 		
 // Повторить действия для элемента "Показывать маркеры точек"
 		Action showMarkersAction = new AbstractAction("Показывать маркеры точек") {
@@ -126,44 +105,53 @@ public class MainFrame extends JFrame {
 		};
 		showMarkersMenuItem = new JCheckBoxMenuItem(showMarkersAction);
 		graphicsMenu.add(showMarkersMenuItem);
-// Элемент по умолчанию включен (отмечен флажком)
 		showMarkersMenuItem.setSelected(true);
-// Зарегистрировать обработчик событий, связанных с меню "График"
 		graphicsMenu.addMenuListener(new GraphicsMenuListener());
-// Установить GraphicsDisplay в цент граничной компоновки
+		Action showAltGraphicAction = new AbstractAction("Показывать второй график") {
+			public void actionPerformed(ActionEvent event) {
+				display.setShowAltGraphic(showAltGraphicMenuItem.isSelected());
+			}
+		};
+		showAltGraphicMenuItem = new JCheckBoxMenuItem(showAltGraphicAction);
+		graphicsMenu.add(showAltGraphicMenuItem);
+		showAltGraphicMenuItem.setSelected(true);
+		graphicsMenu.addMenuListener(new GraphicsMenuListener());
+		Action isRotatedAction = new AbstractAction("Повернуть график") {
+			public void actionPerformed(ActionEvent event) {
+				display.setIsRotated(isRotatedMenuItem.isSelected());
+			}
+		};
+		isRotatedMenuItem = new JCheckBoxMenuItem(isRotatedAction);
+		graphicsMenu.add(isRotatedMenuItem);
+		isRotatedMenuItem.setSelected(false);
+		graphicsMenu.addMenuListener(new GraphicsMenuListener());
 		getContentPane().add(display, BorderLayout.CENTER);
 	}
 
 // Считывание данных графика из существующего файла
-	protected void openGraphics(File selectedFile) {
+	protected void openGraphics(File selectedFile, boolean alt) {
 		try {
 // Шаг 1 - Открыть поток чтения данных, связанный с входным файловым потоком
 			DataInputStream in = new DataInputStream(new FileInputStream(selectedFile));
-			/*
-			 * Шаг 2 - Зная объѐм данных в потоке ввода можно вычислить, сколько памяти
-			 * нужно зарезервировать в массиве: Всего байт в потоке - in.available() байт;
-			 * Размер одного числа Double - Double.SIZE бит, или Double.SIZE/8 байт; Так как
-			 * числа записываются парами, то число пар меньше в 2 раза
-			 */
+			
 			Double[][] graphicsData = new Double[in.available() / (Double.SIZE / 8) / 2][];
 // Шаг 3 - Цикл чтения данных (пока в потоке есть данные)
 			int i = 0;
 			while (in.available() > 0) {
-// Первой из потока читается координата точки X
 				Double x = in.readDouble();
-// Затем - значение графика Y в точке X
 				Double y = in.readDouble();
-// Прочитанная пара координат добавляется в массив
 				graphicsData[i++] = new Double[] { x, y };
 			}
-// Шаг 4 - Проверка, имеется ли в списке в результате чтения хотя бы одна пара координат
 			if (graphicsData != null && graphicsData.length > 0) {
-// Да - установить флаг загруженности данных
 				fileLoaded = true;
-// Вызывать метод отображения графика
+				if(!alt)
 				display.showGraphics(graphicsData);
+				else {
+					altFileLoaded = true;
+					display.showAltGraphics(graphicsData);
+				}
 			}
-// Шаг 5 - Закрыть входной поток
+
 			in.close();
 		} catch (FileNotFoundException ex) {
 // В случае исключительной ситуации типа "Файл не найден" показать сообщение об ошибке
@@ -192,6 +180,7 @@ public class MainFrame extends JFrame {
 // Доступность или недоступность элементов меню "График" определяется загруженностью данных
 			showAxisMenuItem.setEnabled(fileLoaded);
 			showMarkersMenuItem.setEnabled(fileLoaded);
+			showAltGraphicMenuItem.setEnabled(altFileLoaded);
 		}
 
 // Обработчик, вызываемый после того, как меню исчезло с экрана
